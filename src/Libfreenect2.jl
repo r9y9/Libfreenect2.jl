@@ -37,11 +37,10 @@ export
     data,
     exposure,
     gain,
-    gamma,
-    asarray
+    gamma
 
 
-VERBOSE = true
+const VERBOSE = true
 
 # Load dependency
 VERBOSE && info("Loading deps.jl")
@@ -52,7 +51,7 @@ else
     error("Libfreenect2 not properly installed. Please run Pkg.build(\"Libfreenect2\")")
 end
 
-import Base: getindex, start, close, gamma
+import Base: convert, getindex, start, close, gamma
 
 VERBOSE && info("Loading Cxx.jl...")
 using Cxx
@@ -278,7 +277,11 @@ function gamma(frame::FrameContainer)
     icxx"$(frame.cppframe)->gamma;"
 end
 
-function asarray(frame::FrameContainer; do_reshape=true)
+### Frame to Array conversion ###
+
+"""Convenient function to convert Frame* to
+"""
+function _asarray(frame::FrameContainer; do_reshape=true)
     data_ptr = data(frame)::Ptr{UInt8}
 
     if frame.ftype == FRAME_COLOR
@@ -288,7 +291,7 @@ function asarray(frame::FrameContainer; do_reshape=true)
             array = reshape(array, 4, width(frame), height(frame))
         end
         return array
-    elseif frame.ftype == FRAME_IR || frame.ftye == FRAME_DEPTH
+    elseif frame.ftype == FRAME_IR || frame.ftype == FRAME_DEPTH
         total_length = width(frame) * height(frame) * 1
         array = pointer_to_array(convert(Ptr{Float32}, data_ptr), total_length)
         if do_reshape
@@ -298,6 +301,13 @@ function asarray(frame::FrameContainer; do_reshape=true)
     else
         error("annnot determine type of raw data")
     end
+end
+
+function convert(::Type{Array}, frame::FrameContainer)
+    _asarray(frame, do_reshape=true)
+end
+function convert(::Type{Vector}, frame::FrameContainer)
+    _asarray(frame, do_reshape=false)
 end
 
 # TODO: remove this inefficient glue code
