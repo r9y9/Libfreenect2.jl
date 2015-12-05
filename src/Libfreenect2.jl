@@ -27,6 +27,7 @@ export
     release,
 
     FrameType,
+    FrameContainer,
 
     # Frame
     timestamp,
@@ -37,7 +38,10 @@ export
     data,
     exposure,
     gain,
-    gamma
+    gamma,
+
+    Registration,
+    apply
 
 
 const VERBOSE = true
@@ -213,6 +217,11 @@ type FrameContainer
     FrameContainer(frame, key=-1) = new(frame, key)
 end
 
+function FrameContainer(width, height, bytes_per_pixel; key=-1)
+    frame = @cxxnew libfreenect2::Frame(width, height, bytes_per_pixel)
+    FrameContainer(frame, key)
+end
+
 function getindex(frames::FrameMapContainer, key)
     @assert isa(key, CppEnum{symbol("libfreenect2::Frame::Type")})
     FrameContainer(getindex(frames.cppframes, key), key.val)
@@ -281,7 +290,7 @@ end
 
 """Convenient function to convert Frame* to
 """
-function _asarray(frame::FrameContainer; do_reshape=true)
+function _asarray(frame::FrameContainer; do_reshape::Bool=true)
     data_ptr = data(frame)::Ptr{UInt8}
 
     if frame.ftype == FRAME_COLOR
@@ -334,6 +343,24 @@ void deleteFrame(libfreenect2::Frame* frame) {
 """
 function release(frame::FrameContainer)
     @cxx deleteFrame(frame.cppframe)
+end
+
+const ColorCameraParams = cxxt"libfreenect2::Freenect2Device::ColorCameraParams"
+const IrCameraParams = cxxt"libfreenect2::Freenect2Device::IrCameraParams"
+
+const pRegistration = pcpp"libfreenect2::Registration"
+
+function Registration(irparams::IrCameraParams, cparams::ColorCameraParams)
+    @cxxnew libfreenect2::Registration(irparams, cparams)
+end
+
+function Base.apply{T<:FrameContainer}(registration, color::T, depth::T,
+    undistored::T, registered::T; enable_filter=true)
+    cframe = color.cppframe
+    dframe = depth.cppframe
+    uframe = undistored.cppframe
+    rframe = registered.cppframe
+    @cxx registration->apply(cframe, dframe, uframe, rframe, enable_filter)
 end
 
 end # module Libfreenect2
