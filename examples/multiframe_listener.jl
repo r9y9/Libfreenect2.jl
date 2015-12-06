@@ -5,7 +5,7 @@ using OpenCV
 isesc(key) = key == 27
 
 f = Freenect2()
-device = openDefaultDevice(f)
+device = openDefaultDevice(f, OpenGLPacketPipeline())
 listener = SyncMultiFrameListener()
 setIrAndDepthFrameListener(device, listener)
 setColorFrameListener(device, listener)

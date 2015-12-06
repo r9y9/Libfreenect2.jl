@@ -9,6 +9,11 @@ export
     openDevice,
     openDefaultDevice,
 
+    # Packet pipelines
+    CpuPacketPipeline,
+    OpenGLPacketPipeline,
+    OpenCLPacketPipeline,
+
     # Freenect2Device
     getSerialNumber,
     getFirmwareVersion,
@@ -96,6 +101,10 @@ else
     error("Cannot find libfreenect2 headers")
 end
 
+CpuPacketPipeline() = @cxxnew libfreenect2::CpuPacketPipeline()
+OpenGLPacketPipeline() = @cxxnew libfreenect2::OpenGLPacketPipeline()
+OpenCLPacketPipeline() = @cxxnew libfreenect2::OpenCLPacketPipeline()
+
 """libfreenect2::Freenect2
 """
 const Freenect2 = cxxt"libfreenect2::Freenect2"
@@ -103,12 +112,19 @@ Freenect2() = @cxx libfreenect2::Freenect2()
 
 for name in [
     :enumerateDevices,
-    :openDefaultDevice
     ]
     @eval begin
         function $name(f::Freenect2)
             @cxx f->$name()
         end
+    end
+end
+
+function openDefaultDevice(f::Freenect2, pipeline=Union{})
+    if is(pipeline, Union{})
+        @cxx f->openDefaultDevice()
+    else
+        @cxx f->openDefaultDevice(pipeline)
     end
 end
 
@@ -120,13 +136,13 @@ function getDefaultDeviceSerialNumber(f::Freenect2)
     bytestring(@cxx f->getDefaultDeviceSerialNumber())
 end
 
-function openDevice(f::Freenect2, name)
-    if isa(name, AbstractString)
-        @cxx f->openDevice(pointer(name))
-    elseif isa(name, Integer)
-        @cxx f->openDevice(name)
+function openDevice(f::Freenect2, name, pipeline=Union{})
+    arg1 = isa(name ,AbstractString) ? pointer(name) : name
+
+    if is(pipeline, Union{})
+        @cxx f->openDevice(arg1)
     else
-        error("device must be specified by string or integer value")
+        @cxx f->openDevice(arg1, pipeline)
     end
 end
 
