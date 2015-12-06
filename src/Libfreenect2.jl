@@ -26,10 +26,9 @@ export
     waitForNewFrame,
     release,
 
+    # Frame
     FrameType,
     FrameContainer,
-
-    # Frame
     timestamp,
     sequence,
     width,
@@ -40,6 +39,7 @@ export
     gain,
     gamma,
 
+    # Registration
     Registration,
     apply
 
@@ -63,16 +63,11 @@ using Cxx
 # TODO: should be implemented in CxxStd?
 using CxxStd
 getindex(map::CxxStd.StdMap, key) = icxx"$map[$key];"
-key{K,V}(pair::CxxStd.Pair{K,V}) = K
-getindex(pair::CxxStd.Pair, key) = icxx"$pair[$key]"
 
 import Cxx: CppEnum
 
 VERBOSE && info("dlopen...")
-for lib in [libfreenect2]
-    p = Libdl.dlopen_e(lib, Libdl.RTLD_GLOBAL)
-    p == C_NULL && warn("Failed to load: $lib")
-end
+Libdl.dlopen_e(libfreenect2, Libdl.RTLD_GLOBAL)
 
 function include_headers(top)
     addHeaderDir(top, kind=C_System)
@@ -104,9 +99,7 @@ end
 """libfreenect2::Freenect2
 """
 const Freenect2 = cxxt"libfreenect2::Freenect2"
-function Freenect2()
-    @cxx libfreenect2::Freenect2()
-end
+Freenect2() = @cxx libfreenect2::Freenect2()
 
 for name in [
     :enumerateDevices,
@@ -120,13 +113,11 @@ for name in [
 end
 
 function getDeviceSerialNumber(f::Freenect2, idx)
-    s = @cxx f->getDeviceSerialNumber(idx)
-    bytestring(s)
+    bytestring(@cxx f->getDeviceSerialNumber(idx))
 end
 
 function getDefaultDeviceSerialNumber(f::Freenect2)
-    s = @cxx f->getDefaultDeviceSerialNumber()
-    bytestring(s)
+    bytestring(@cxx f->getDefaultDeviceSerialNumber())
 end
 
 function openDevice(f::Freenect2, name)
@@ -144,13 +135,11 @@ end
 const pFreenect2Device = pcpp"libfreenect2::Freenect2Device"
 
 function getSerialNumber(device::pFreenect2Device)
-    s = @cxx device->getSerialNumber()
-    bytestring(s)
+    bytestring(@cxx device->getSerialNumber())
 end
 
 function getFirmwareVersion(device::pFreenect2Device)
-    s = @cxx device->getFirmwareVersion()
-    bytestring(s)
+    bytestring(@cxx device->getFirmwareVersion())
 end
 
 import Base: start, close
@@ -177,13 +166,11 @@ function setIrAndDepthFrameListener(device::pFreenect2Device, listener)
     @cxx device->setIrAndDepthFrameListener(listener)
 end
 
-"""libfreenect2::SyncMultiFrameListener*
-"""
-const pSyncFrameListener = pcpp"libfreenect2::SyncMultiFrameListener"
-
-const FRAME_COLOR = 1
-const FRAME_IR    = 2
-const FRAME_DEPTH = 4
+# This is used in the SyncMultiFrameListener constructor, since it requires frame types
+# to be specified by unsigned int
+const FRAME_COLOR = Cuint(1)
+const FRAME_IR    = Cuint(2)
+const FRAME_DEPTH = Cuint(4)
 
 module FrameType
 
@@ -197,23 +184,20 @@ end # module FrameType
 
 
 function SyncMultiFrameListener(frame_types=FRAME_COLOR | FRAME_IR | FRAME_DEPTH)
-    frame_types = unsigned(frame_types)
     @cxxnew libfreenect2::SyncMultiFrameListener(frame_types)
 end
 
-function hasNewFrame(listener)
-    @cxx listener->hasNewFrame()
-end
+hasNewFrame(listener) = @cxx listener->hasNewFrame()
 
 const FrameMap = cxxt"libfreenect2::FrameMap"
 
 type FrameMapContainer
-    cppframes::FrameMap
+    handle::FrameMap
 end
 
 type FrameContainer
-    cppframe
-    ftype
+    handle::Any # should be proper type annotation
+    frame_type::Cuint
     FrameContainer(frame, key=-1) = new(frame, key)
 end
 
@@ -224,83 +208,36 @@ end
 
 function getindex(frames::FrameMapContainer, key)
     @assert isa(key, CppEnum{symbol("libfreenect2::Frame::Type")})
-    FrameContainer(getindex(frames.cppframes, key), key.val)
+    FrameContainer(getindex(frames.handle, key), key.val)
 end
 
-#= TODO:
-for member in [
-    :timestamp,
-    :sequence,
-    :width,
-    :height,
-    :bytes_per_pixel,
-    :data,
-    :exposure,
-    :gain,
-    :gamma
-    ]
-    @eval begin
-        function $member(frame::FrameContainer)
-            icxx"$(frame.cppframe)->$(member)"
-        end
-    end
-end
-=#
+timestamp(frame::FrameContainer) = icxx"$(frame.handle)->timestamp;"
+sequence(frame::FrameContainer) = icxx"$(frame.handle)->sequence;"
+width(frame::FrameContainer) = convert(Int, icxx"$(frame.handle)->width;")
+height(frame::FrameContainer)= convert(Int, icxx"$(frame.handle)->height;")
+bytes_per_pixel(frame::FrameContainer) =
+    convert(Int, icxx"$(frame.handle)->bytes_per_pixel;")
+data(frame::FrameContainer) = icxx"$(frame.handle)->data;"
+exposure(frame::FrameContainer) = icxx"$(frame.handle)->exposure;"
+gain(frame::FrameContainer) = icxx"$(frame.handle)->gain;"
+gamma(frame::FrameContainer) = icxx"$(frame.handle)->gamma;"
 
-function timestamp(frame::FrameContainer)
-    icxx"$(frame.cppframe)->timestamp;"
-end
-
-function sequence(frame::FrameContainer)
-    icxx"$(frame.cppframe)->sequence;"
-end
-
-function width(frame::FrameContainer)
-    w = icxx"$(frame.cppframe)->width;"
-    signed(w)
-end
-
-function height(frame::FrameContainer)
-    h = icxx"$(frame.cppframe)->height;"
-    signed(h)
-end
-
-function bytes_per_pixel(frame::FrameContainer)
-    b = icxx"$(frame.cppframe)->bytes_per_pixel;"
-    signed(b)
-end
-
-function data(frame::FrameContainer)
-    icxx"$(frame.cppframe)->data;"
-end
-
-function exposure(frame::FrameContainer)
-    icxx"$(frame.cppframe)->exposure;"
-end
-
-function gain(frame::FrameContainer)
-    icxx"$(frame.cppframe)->gain;"
-end
-
-function gamma(frame::FrameContainer)
-    icxx"$(frame.cppframe)->gamma;"
-end
 
 ### Frame to Array conversion ###
 
-"""Convenient function to convert Frame* to
+"""Convenient function to convert Frame* to Array
 """
 function _asarray(frame::FrameContainer; do_reshape::Bool=true)
     data_ptr = data(frame)::Ptr{UInt8}
 
-    if frame.ftype == FRAME_COLOR
+    if frame.frame_type == FRAME_COLOR
         total_length = width(frame) * height(frame) * 4
         array = pointer_to_array(data_ptr, total_length)
         if do_reshape
             array = reshape(array, 4, width(frame), height(frame))
         end
         return array
-    elseif frame.ftype == FRAME_IR || frame.ftype == FRAME_DEPTH
+    elseif frame.frame_type == FRAME_IR || frame.frame_type == FRAME_DEPTH
         total_length = width(frame) * height(frame) * 1
         array = pointer_to_array(convert(Ptr{Float32}, data_ptr), total_length)
         if do_reshape
@@ -308,7 +245,7 @@ function _asarray(frame::FrameContainer; do_reshape::Bool=true)
         end
         return array
     else
-        error("annnot determine type of raw data")
+        error("Cannnot determine type of raw data")
     end
 end
 
@@ -319,14 +256,32 @@ function convert(::Type{Vector}, frame::FrameContainer)
     _asarray(frame, do_reshape=false)
 end
 
+# TODO: should use multiple dispatch instead?
+function convert{T,N}(::Type{Array{T,N}}, frame::FrameContainer)
+    typ = frame.frame_type
+    if typ == FRAME_COLOR && T == UInt8 && N == 3
+        return _asarray(frame, do_reshape=true)
+    elseif typ == FRAME_COLOR && T == UInt8 && N == 1
+        return _asarray(frame, do_reshape=false)
+    elseif (typ == FRAME_IR || typ == FRAME_DEPTH) && T == Float32 && N == 2
+        return _asarray(frame, do_reshape=true)
+    elseif (typ == FRAME_IR || typ == FRAME_DEPTH) && T == Float32 && N == 1
+        return _asarray(frame, do_reshape=false)
+    else
+        error("unsupported conversion")
+    end
+end
+
 # TODO: remove this inefficient glue code
 cxx"""
-libfreenect2::FrameMap getFrameMap(libfreenect2::SyncMultiFrameListener* listener) {
+libfreenect2::FrameMap getFrameMap(
+    libfreenect2::SyncMultiFrameListener* listener) {
     libfreenect2::FrameMap frames;
     listener->waitForNewFrame(frames);
     return frames;
 }
 """
+
 function waitForNewFrame(listener)
     frames = @cxx getFrameMap(listener)
     return FrameMapContainer(frames)
@@ -341,25 +296,21 @@ void deleteFrame(libfreenect2::Frame* frame) {
     }
 }
 """
-function release(frame::FrameContainer)
-    @cxx deleteFrame(frame.cppframe)
-end
+release(frame::FrameContainer) = @cxx deleteFrame(frame.handle)
 
 const ColorCameraParams = cxxt"libfreenect2::Freenect2Device::ColorCameraParams"
 const IrCameraParams = cxxt"libfreenect2::Freenect2Device::IrCameraParams"
-
-const pRegistration = pcpp"libfreenect2::Registration"
 
 function Registration(irparams::IrCameraParams, cparams::ColorCameraParams)
     @cxxnew libfreenect2::Registration(irparams, cparams)
 end
 
 function Base.apply{T<:FrameContainer}(registration, color::T, depth::T,
-    undistored::T, registered::T; enable_filter=true)
-    cframe = color.cppframe
-    dframe = depth.cppframe
-    uframe = undistored.cppframe
-    rframe = registered.cppframe
+    undistored::T, registered::T; enable_filter::Bool=true)
+    cframe = color.handle
+    dframe = depth.handle
+    uframe = undistored.handle
+    rframe = registered.handle
     @cxx registration->apply(cframe, dframe, uframe, rframe, enable_filter)
 end
 

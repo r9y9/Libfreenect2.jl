@@ -28,14 +28,14 @@ while true
     apply(registration, color, depth, undistorted, registered)
 
     # Convert to Julia Array
-    colorarr = convert(Array, color)
-    irarr = convert(Array, ir)
-    deptharr = convert(Array, depth)
-    registeredarr = convert(Array, registered)
+    colorarr = convert(Array{UInt8,3}, color)
+    irarr = convert(Array{Float32,2}, ir)
+    deptharr = convert(Array{Float32,2}, depth)
+    registeredarr = convert(Array{UInt8,3}, registered)
 
     # Scale array to range [0,1]
-    scale!(1/65535.0, irarr)
-    scale!(1/4500.0, deptharr)
+    scale!(1/65535, irarr)
+    scale!(1/4500, deptharr)
 
     # resize color image since it's a bit large to draw
     colormat = cv2.Mat(colorarr)
