@@ -137,7 +137,7 @@ function getDefaultDeviceSerialNumber(f::Freenect2)
 end
 
 function openDevice(f::Freenect2, name, pipeline=Union{})
-    arg1 = isa(name ,AbstractString) ? pointer(name) : name
+    arg1 = isa(name, AbstractString) ? pointer(name) : name
 
     if is(pipeline, Union{})
         @cxx f->openDevice(arg1)
@@ -214,10 +214,10 @@ end
 type FrameContainer
     handle::Any # should be proper type annotation
     frame_type::Cuint
-    FrameContainer(frame, key=-1) = new(frame, key)
+    FrameContainer(frame, key=0) = new(frame, key)
 end
 
-function FrameContainer(width, height, bytes_per_pixel; key=-1)
+function FrameContainer(width, height, bytes_per_pixel; key=0)
     frame = @cxxnew libfreenect2::Frame(width, height, bytes_per_pixel)
     FrameContainer(frame, key)
 end
@@ -297,7 +297,6 @@ libfreenect2::FrameMap getFrameMap(
     return frames;
 }
 """
-
 function waitForNewFrame(listener)
     frames = @cxx getFrameMap(listener)
     return FrameMapContainer(frames)
