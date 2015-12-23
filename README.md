@@ -4,18 +4,18 @@ A Julia wrapper for libfreenect2 based on Cxx.jl
 
 ![examples/depth_streaming_example.gif](examples/depth_streaming_example.gif)
 
-LibFreenect2.jl supports most of libfreenect2 features: 
+LibFreenect2.jl supports most of libfreenect2 features:
 
 - RGB image transfer
 - IR and depth image transfer
 - registration of RGB and depth images
 
-Have fun! 
+Have fun!
 
 ## Dependencies
 
 - [Cxx.jl](https://github.com/Keno/Cxx.jl)
-- [libfreenect2 (master)](https://github.com/OpenKinect/libfreenect2) (automatically detected or intalled)
+- [libfreenect2 (master)](https://github.com/OpenKinect/libfreenect2) (automatically detected or installed)
 
 ## Installation
 

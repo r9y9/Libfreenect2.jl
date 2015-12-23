@@ -1,3 +1,5 @@
+__precompile__(false)
+
 module Libfreenect2
 
 export
@@ -105,8 +107,7 @@ CpuPacketPipeline() = @cxxnew libfreenect2::CpuPacketPipeline()
 OpenGLPacketPipeline() = @cxxnew libfreenect2::OpenGLPacketPipeline()
 OpenCLPacketPipeline() = @cxxnew libfreenect2::OpenCLPacketPipeline()
 
-"""libfreenect2::Freenect2
-"""
+"""libfreenect2::Freenect2"""
 const Freenect2 = cxxt"libfreenect2::Freenect2"
 Freenect2() = @cxx libfreenect2::Freenect2()
 
@@ -146,8 +147,7 @@ function openDevice(f::Freenect2, name, pipeline=Union{})
     end
 end
 
-"""libfreenect2::Freenect2Device*
-"""
+"""libfreenect2::Freenect2Device*"""
 const pFreenect2Device = pcpp"libfreenect2::Freenect2Device"
 
 function getSerialNumber(device::pFreenect2Device)
@@ -163,13 +163,21 @@ import Base: start, close
 for f in [
     :getColorCameraParams,
     :getIrCameraParams,
+    ]
+    @eval begin
+        $f(device::pFreenect2Device) = @cxx device->$f()
+    end
+end
+
+for f in [
     :start,
     :stop,
     :close
     ]
     @eval begin
         function $f(device::pFreenect2Device)
-            @cxx device->$f()
+            r = @cxx device->$f()
+            r || error("problem happens in $f")
         end
     end
 end
