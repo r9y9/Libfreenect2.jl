@@ -15,8 +15,7 @@ start(device)
 # NOTE: must be called after start(device)
 registration = Registration(getIrCameraParams(device),
     getColorCameraParams(device))
-# these are of the same memory layout to color stream
-undistorted = FrameContainer(512, 424, 4, key=Libfreenect2.FRAME_COLOR)
+undistorted = FrameContainer(512, 424, 4, key=Libfreenect2.FRAME_DEPTH)
 registered = FrameContainer(512, 424, 4, key=Libfreenect2.FRAME_COLOR)
 
 while true
@@ -32,6 +31,7 @@ while true
     irarr = convert(Array{Float32,2}, ir)
     deptharr = convert(Array{Float32,2}, depth)
     registeredarr = convert(Array{UInt8,3}, registered)
+    undistortedarr = convert(Array{Float32,2}, undistorted)
 
     # Scale array to range [0,1]
     scale!(1/65535, irarr)
@@ -44,7 +44,9 @@ while true
     cv2.imshow("color", colormat)
     cv2.imshow("ir", irarr)
     cv2.imshow("depth", deptharr)
-    cv2.imshow("registered", registeredarr)
+
+    # cv2.imshow("registered", registeredarr)
+    # cv2.imshow("unistored", undistortedarr)
 
     map(release, [color, ir, depth])
 
