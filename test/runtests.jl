@@ -46,6 +46,8 @@ end
     depth = frames[FrameType.DEPTH]
 
     apply(registration, color, depth, undistorted, registered)
+    x,y,z,r,g,b = getPointXYZRGB(registration, undistorted, registered, 200, 200)
+    @test all(isfinite([x,y,z])) && all(isfinite([r,g,b]))
 
     for frame in [color, ir, depth]
         @test bytes_per_pixel(frame) == 4

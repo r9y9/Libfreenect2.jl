@@ -48,7 +48,8 @@ export
 
     # Registration
     Registration,
-    apply
+    apply,
+    getPointXYZRGB
 
 
 const VERBOSE = true
@@ -329,12 +330,35 @@ function Registration(irparams::IrCameraParams, cparams::ColorCameraParams)
 end
 
 function Base.apply{T<:FrameContainer}(registration, color::T, depth::T,
-    undistored::T, registered::T; enable_filter::Bool=true)
+    undistorted::T, registered::T; enable_filter::Bool=true)
     cframe = color.handle
     dframe = depth.handle
-    uframe = undistored.handle
+    uframe = undistorted.handle
     rframe = registered.handle
     @cxx registration->apply(cframe, dframe, uframe, rframe, enable_filter)
+end
+
+cxx"""
+uint8_t unsafe_f2uint8(float& rgb, size_t idx) {
+    const uint8_t *p = reinterpret_cast<uint8_t*>(&rgb);
+    return p[idx];
+}
+"""
+function getPointXYZRGB{T<:FrameContainer}(registration, undistorted::T,
+    registered::T, r::Integer, c::Integer)
+    uframe = undistorted.handle
+    rframe = registered.handle
+    x = Ref{Cfloat}()
+    y = Ref{Cfloat}()
+    z = Ref{Cfloat}()
+    rgb = Ref{Cfloat}()
+    icxx"""$(registration)->getPointXYZRGB($uframe, $rframe,
+        $r, $c, $x, $y, $z, $rgb);"""
+    rgbval = rgb[]
+    b = @cxx unsafe_f2uint8(rgbval, 0)
+    g = @cxx unsafe_f2uint8(rgbval, 1)
+    r = @cxx unsafe_f2uint8(rgbval, 2)
+    return x[], y[], z[], r, g, b
 end
 
 end # module Libfreenect2
