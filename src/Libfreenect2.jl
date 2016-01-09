@@ -339,7 +339,7 @@ function Base.apply{T<:FrameContainer}(registration, color::T, depth::T,
 end
 
 cxx"""
-uint8_t unsafe_f2uint8(float& rgb, size_t idx) {
+inline uint8_t unsafe_f2uint8(float& rgb, size_t idx) {
     const uint8_t *p = reinterpret_cast<uint8_t*>(&rgb);
     return p[idx];
 }
