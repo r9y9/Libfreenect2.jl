@@ -178,7 +178,7 @@ for f in [
     @eval begin
         function $f(device::pFreenect2Device)
             r = @cxx device->$f()
-            r || error("problem happens in $f")
+            r || error("problem happens in device operation")
         end
     end
 end
