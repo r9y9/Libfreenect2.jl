@@ -2,7 +2,7 @@
 
 A Julia wrapper for libfreenect2 based on Cxx.jl
 
-<div align="center><img src="examples/depth_streaming_example.gif"></div>
+<div align="center"><img src="examples/depth_streaming_example.gif"></div>
 
 LibFreenect2.jl supports most of libfreenect2 features:
 
