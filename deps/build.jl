@@ -3,13 +3,24 @@ using Compat
 
 @BinDeps.setup
 
-libfreenect2_version = "master"
-libfreenect2 = library_dependency("libfreenect2")
+const libfreenect2_version = "0.1.0"
+
+ignore_paths = split(strip(get(ENV, "LIBFREENECT2JL_LIBRARY_IGNORE_PATH", "")), ':')
+
+validate = function(libpath, handle)
+    for path in ignore_paths
+        isempty(path) && continue
+        ismatch(Regex("^$(path)"), libpath) && return false
+    end
+    return true
+end
+
+libfreenect2 = library_dependency("libfreenect2", validate=validate)
 
 github_root = "https://github.com/OpenKinect/libfreenect2"
 
 provides(Sources,
-         URI("$(github_root)/archive/$(libfreenect2_version).tar.gz"),
+         URI("$(github_root)/archive/v$(libfreenect2_version).tar.gz"),
          libfreenect2,
          unpacked_dir="libfreenect2-$(libfreenect2_version)")
 
