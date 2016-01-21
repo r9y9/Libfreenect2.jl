@@ -15,7 +15,7 @@ Have fun!
 ## Dependencies
 
 - [Cxx.jl](https://github.com/Keno/Cxx.jl)
-- [libfreenect2 (master)](https://github.com/OpenKinect/libfreenect2) (automatically detected or installed)
+- [libfreenect2](https://github.com/OpenKinect/libfreenect2)
 
 ## Installation
 
