@@ -52,7 +52,7 @@ export
     getPointXYZRGB
 
 
-const VERBOSE = true
+const VERBOSE = Bool(parse(Int, get(ENV, "LIBFREENECT2JL_VERBOSE", "1")))
 
 # Load dependency
 VERBOSE && info("Loading deps.jl")
@@ -67,12 +67,6 @@ import Base: convert, getindex, start, close, gamma
 
 VERBOSE && info("Loading Cxx.jl...")
 using Cxx
-
-# TODO: should be implemented in CxxStd?
-using CxxStd
-getindex(map::CxxStd.StdMap, key) = icxx"$map[$key];"
-
-import Cxx: CppEnum
 
 VERBOSE && info("dlopen...")
 Libdl.dlopen_e(libfreenect2, Libdl.RTLD_GLOBAL)
@@ -104,9 +98,13 @@ else
     error("Cannot find libfreenect2 headers")
 end
 
+
 CpuPacketPipeline() = @cxxnew libfreenect2::CpuPacketPipeline()
 OpenGLPacketPipeline() = @cxxnew libfreenect2::OpenGLPacketPipeline()
 OpenCLPacketPipeline() = @cxxnew libfreenect2::OpenCLPacketPipeline()
+
+import Cxx: CppEnum
+const Libfreenect2FrameType = CppEnum{symbol("libfreenect2::Frame::Type")}
 
 """libfreenect2::Freenect2"""
 const Freenect2 = cxxt"libfreenect2::Freenect2"
@@ -199,11 +197,11 @@ const FRAME_DEPTH = Cuint(4)
 
 module FrameType
 
-import Cxx: CppEnum
+import ..Libfreenect2: Libfreenect2FrameType
 
-const COLOR = CppEnum{symbol("libfreenect2::Frame::Type")}(1)
-const IR = CppEnum{symbol("libfreenect2::Frame::Type")}(2)
-const DEPTH = CppEnum{symbol("libfreenect2::Frame::Type")}(4)
+const COLOR = Libfreenect2FrameType(1)
+const IR = Libfreenect2FrameType(2)
+const DEPTH = Libfreenect2FrameType(4)
 
 end # module FrameType
 
@@ -221,18 +219,26 @@ type FrameMapContainer
 end
 
 type FrameContainer
-    handle::Any # should be proper type annotation
+    handle::pcpp"libfreenect2::Frame"
     frame_type::Cuint
     FrameContainer(frame, key=0) = new(frame, key)
 end
 
 function FrameContainer(width, height, bytes_per_pixel; key=0)
-    frame = @cxxnew libfreenect2::Frame(width, height, bytes_per_pixel)
+    frame = icxx"new libfreenect2::Frame($width, $height, $bytes_per_pixel);"
     FrameContainer(frame, key)
 end
 
-function getindex(frames::FrameMapContainer, key)
-    @assert isa(key, CppEnum{symbol("libfreenect2::Frame::Type")})
+using CxxStd
+function getindex(map::CxxStd.StdMap, key::Libfreenect2FrameType)
+    icxx"""
+        libfreenect2::Frame* f = $map[$key];
+        return f;
+    """
+end
+
+function getindex(frames::FrameMapContainer, key::Libfreenect2FrameType)
+    @assert isa(key, Libfreenect2FrameType)
     FrameContainer(getindex(frames.handle, key), key.val)
 end
 
@@ -311,16 +317,14 @@ function waitForNewFrame(listener)
     return FrameMapContainer(frames)
 end
 
-# TODO: remove this
-cxx"""
-void deleteFrame(libfreenect2::Frame* frame) {
-    if (frame != nullptr) {
-        delete frame;
-        frame = nullptr;
+function release(frame::FrameContainer)
+    icxx"""
+    if ($(frame.handle) != nullptr) {
+        delete $(frame.handle);
+        $(frame.handle) = nullptr;
     }
-}
-"""
-release(frame::FrameContainer) = @cxx deleteFrame(frame.handle)
+    """
+end
 
 const ColorCameraParams = cxxt"libfreenect2::Freenect2Device::ColorCameraParams"
 const IrCameraParams = cxxt"libfreenect2::Freenect2Device::IrCameraParams"
