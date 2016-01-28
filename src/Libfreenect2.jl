@@ -242,17 +242,32 @@ function getindex(frames::FrameMapContainer, key::Libfreenect2FrameType)
     FrameContainer(getindex(frames.handle, key), key.val)
 end
 
-timestamp(frame::FrameContainer) = icxx"$(frame.handle)->timestamp;"
-sequence(frame::FrameContainer) = icxx"$(frame.handle)->sequence;"
-width(frame::FrameContainer) = convert(Int, icxx"$(frame.handle)->width;")
-height(frame::FrameContainer)= convert(Int, icxx"$(frame.handle)->height;")
-bytes_per_pixel(frame::FrameContainer) =
-    convert(Int, icxx"$(frame.handle)->bytes_per_pixel;")
-data(frame::FrameContainer) = icxx"$(frame.handle)->data;"
-exposure(frame::FrameContainer) = icxx"$(frame.handle)->exposure;"
-gain(frame::FrameContainer) = icxx"$(frame.handle)->gain;"
-gamma(frame::FrameContainer) = icxx"$(frame.handle)->gamma;"
+for member in [
+    :timestamp,
+    :sequence,
+    :data,
+    :exposure,
+    :gain,
+    :gamma
+    ]
+    body = "\$(frame.handle)->$(member);"
+    ex = Expr(:macrocall, symbol("@icxx_str"), body)
+    @eval begin
+        $member(frame::FrameContainer) = $ex
+    end
+end
 
+for member in [
+    :width,
+    :height,
+    :bytes_per_pixel,
+    ]
+    body = "\$(frame.handle)->$(member);"
+    ex = Expr(:macrocall, symbol("@icxx_str"), body)
+    @eval begin
+        $member(frame::FrameContainer) = convert(Int, $ex)
+    end
+end
 
 ### Frame to Array conversion ###
 
