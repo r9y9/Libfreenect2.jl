@@ -69,5 +69,7 @@ end
         @test size(deptharr) == size(irarr)
     end
 
+    forearch(release, [color, ir, depth])
+
     close(device)
 end
