@@ -48,7 +48,7 @@ while true
     # cv2.imshow("registered", registeredarr)
     # cv2.imshow("unistored", undistortedarr)
 
-    map(release, [color, ir, depth])
+    foreach(release, [color, ir, depth])
 
     key = cv2.waitKey(delay=1)
     isesc(key) && break
