@@ -6,7 +6,7 @@ isesc(key) = key == 27
 
 f = Freenect2()
 device = openDefaultDevice(f, OpenGLPacketPipeline())
-listener = SyncMultiFrameListener()
+listener = SyncMultiFrameListenerPtr()
 setIrAndDepthFrameListener(device, listener)
 setColorFrameListener(device, listener)
 
@@ -15,8 +15,8 @@ start(device)
 # NOTE: must be called after start(device)
 registration = Registration(getIrCameraParams(device),
     getColorCameraParams(device))
-undistorted = FrameContainer(512, 424, 4, key=Libfreenect2.FRAME_DEPTH)
-registered = FrameContainer(512, 424, 4, key=Libfreenect2.FRAME_COLOR)
+undistorted = FramePtr(512, 424, 4, key=Libfreenect2.FRAME_DEPTH)
+registered = FramePtr(512, 424, 4, key=Libfreenect2.FRAME_COLOR)
 
 while true
     frames = waitForNewFrame(listener)
@@ -48,11 +48,18 @@ while true
     # cv2.imshow("registered", registeredarr)
     # cv2.imshow("unistored", undistortedarr)
 
-    foreach(release, [color, ir, depth])
+    release(frames)
 
     key = cv2.waitKey(delay=1)
     isesc(key) && break
+
+    # TODO: remove this
+    rand() > 0.98 && gc(false)
 end
+
+foreach(release, [undistorted, registered])
 
 stop(device)
 close(device)
+
+release(listener)

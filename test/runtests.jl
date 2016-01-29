@@ -2,13 +2,14 @@ using Libfreenect2
 using Base.Test
 
 @testset "Frame" begin
-    frame = FrameContainer(512, 424, 4)
+    frame = FramePtr(512, 424, 4)
     @test width(frame) == 512
     @test height(frame) == 424
     @test bytes_per_pixel(frame) == 4
     @test exposure(frame) == 0.0
     @test gain(frame) == 0.0
     @test gamma(frame) == 0.0
+    release(frame)
 end
 
 @testset "libfreenect2 basics" begin
@@ -24,7 +25,7 @@ end
     firmware_version = getFirmwareVersion(device)
     @test !isempty(firmware_version)
 
-    listener = SyncMultiFrameListener()
+    listener = SyncMultiFrameListenerPtr()
     setIrAndDepthFrameListener(device, listener)
     setColorFrameListener(device, listener)
 
@@ -34,8 +35,8 @@ end
     registration = Registration(getIrCameraParams(device),
         getColorCameraParams(device))
     # these are of the same memory layout to color stream
-    undistorted = FrameContainer(512, 424, 4, key=Libfreenect2.FRAME_COLOR)
-    registered = FrameContainer(512, 424, 4, key=Libfreenect2.FRAME_COLOR)
+    undistorted = FramePtr(512, 424, 4, key=Libfreenect2.FRAME_COLOR)
+    registered = FramePtr(512, 424, 4, key=Libfreenect2.FRAME_COLOR)
 
     frames = waitForNewFrame(listener)
 
@@ -69,7 +70,8 @@ end
         @test size(deptharr) == size(irarr)
     end
 
-    foreach(release, [color, ir, depth])
-
+    release(frames)
     close(device)
+
+    release(listener)
 end
