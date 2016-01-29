@@ -132,7 +132,7 @@ hasNewFrame(listener::SyncMultiFrameListenerPtr) = @cxx listener->hasNewFrame()
 
 """libfreenect2::Freenect2"""
 typealias Freenect2 cxxt"libfreenect2::Freenect2"
-Base.call(::Type{Freenect2}) = @cxx libfreenect2::Freenect2()
+(::Type{Freenect2})() = @cxx libfreenect2::Freenect2()
 
 for name in [
     :enumerateDevices,
