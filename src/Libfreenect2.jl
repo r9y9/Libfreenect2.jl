@@ -105,7 +105,7 @@ OpenGLPacketPipeline() = @cxxnew libfreenect2::OpenGLPacketPipeline()
 OpenCLPacketPipeline() = @cxxnew libfreenect2::OpenCLPacketPipeline()
 
 import Cxx: CppEnum
-const Libfreenect2FrameType = CppEnum{symbol("libfreenect2::Frame::Type")}
+const Libfreenect2FrameType = CppEnum{symbol("libfreenect2::Frame::Type"),Int32}
 
 type SyncMultiFrameListenerPtr
     handle::pcpp"libfreenect2::SyncMultiFrameListener"
