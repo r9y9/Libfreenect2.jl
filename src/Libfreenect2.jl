@@ -47,6 +47,9 @@ export
     gain,
     gamma,
 
+    # release heap-allocated memory
+    destroy,
+
     # Registration
     Registration,
     apply,
@@ -107,108 +110,6 @@ OpenCLPacketPipeline() = @cxxnew libfreenect2::OpenCLPacketPipeline()
 import Cxx: CppEnum
 const Libfreenect2FrameType = CppEnum{symbol("libfreenect2::Frame::Type"),Int32}
 
-type SyncMultiFrameListenerPtr
-    handle::pcpp"libfreenect2::SyncMultiFrameListener"
-
-    function SyncMultiFrameListenerPtr(
-            frame_types=FRAME_COLOR | FRAME_IR | FRAME_DEPTH)
-        new(icxx"new libfreenect2::SyncMultiFrameListener($frame_types);")
-    end
-end
-
-function release(listener::SyncMultiFrameListenerPtr)
-    icxx"""
-    if ($(listener.handle) != nullptr) {
-        delete $(listener.handle);
-        $(listener.handle) = nullptr;
-    }
-    """
-end
-
-destroy_listener(listener::SyncMultiFrameListenerPtr) =
-    destory_ptr(listener.handle)
-
-hasNewFrame(listener::SyncMultiFrameListenerPtr) = @cxx listener->hasNewFrame()
-
-"""libfreenect2::Freenect2"""
-typealias Freenect2 cxxt"libfreenect2::Freenect2"
-(::Type{Freenect2})() = @cxx libfreenect2::Freenect2()
-
-for name in [
-    :enumerateDevices,
-    ]
-    @eval $name(f::Freenect2) = @cxx f->$name()
-end
-
-function openDefaultDevice(f::Freenect2, pipeline=Union{})
-    if is(pipeline, Union{})
-        @cxx f->openDefaultDevice()
-    else
-        @cxx f->openDefaultDevice(pipeline)
-    end
-end
-
-function getDeviceSerialNumber(f::Freenect2, idx)
-    bytestring(@cxx f->getDeviceSerialNumber(idx))
-end
-
-function getDefaultDeviceSerialNumber(f::Freenect2)
-    bytestring(@cxx f->getDefaultDeviceSerialNumber())
-end
-
-function openDevice(f::Freenect2, name, pipeline=Union{})
-    arg1 = isa(name, AbstractString) ? pointer(name) : name
-
-    if is(pipeline, Union{})
-        @cxx f->openDevice(arg1)
-    else
-        @cxx f->openDevice(arg1, pipeline)
-    end
-end
-
-"""libfreenect2::Freenect2Device*"""
-const Freenect2DevicePtr = pcpp"libfreenect2::Freenect2Device"
-
-function getSerialNumber(device::Freenect2DevicePtr)
-    bytestring(@cxx device->getSerialNumber())
-end
-
-function getFirmwareVersion(device::Freenect2DevicePtr)
-    bytestring(@cxx device->getFirmwareVersion())
-end
-
-import Base: start, close
-
-for f in [
-    :getColorCameraParams,
-    :getIrCameraParams,
-    ]
-    @eval $f(device::Freenect2DevicePtr) = @cxx device->$f()
-end
-
-for f in [
-    :start,
-    :stop,
-    :close,
-    ]
-    @eval begin
-        function $f(device::Freenect2DevicePtr)
-            r = @cxx device->$f()
-            r || error("problem happens in device operation")
-        end
-    end
-end
-
-function setColorFrameListener(device::Freenect2DevicePtr,
-        listener::SyncMultiFrameListenerPtr)
-    icxx"$device->setColorFrameListener($(listener.handle));"
-end
-
-function setIrAndDepthFrameListener(device::Freenect2DevicePtr,
-        listener::SyncMultiFrameListenerPtr)
-    icxx"$device->setIrAndDepthFrameListener($(listener.handle));"
-end
-
 # This is used in the SyncMultiFrameListener constructor, since it requires frame types
 # to be specified by unsigned int
 const FRAME_COLOR = Cuint(1)
@@ -225,6 +126,7 @@ const DEPTH = Libfreenect2FrameType(4)
 
 end # module FrameType
 
+### FrameMap ###
 
 type FrameMap
     handle::cxxt"libfreenect2::FrameMap"
@@ -244,6 +146,8 @@ function release(jlframes::FrameMap)
     """
 end
 
+### Frame ###
+
 type FramePtr
     handle::pcpp"libfreenect2::Frame"
     frame_type::Cuint
@@ -254,11 +158,13 @@ type FramePtr
 
     function FramePtr(width, height, bytes_per_pixel; key=0)
         frame = icxx"new libfreenect2::Frame($width, $height, $bytes_per_pixel);"
-        new(frame, key)
+        p = new(frame, key)
+        finalizer(p, destroy)
+        p
     end
 end
 
-function release(frame::FramePtr)
+function destroy(frame::FramePtr)
     icxx"""
     if ($(frame.handle) != nullptr) {
         delete $(frame.handle);
@@ -352,30 +258,147 @@ function convert{T,N}(::Type{Array{T,N}}, frame::FramePtr)
     end
 end
 
+### SyncMultiFrameListener ###
+
+type SyncMultiFrameListenerPtr
+    handle::cxxt"std::shared_ptr<libfreenect2::SyncMultiFrameListener>"
+
+    function SyncMultiFrameListenerPtr(
+            frame_types=FRAME_COLOR | FRAME_IR | FRAME_DEPTH)
+        new(icxx"""
+            std::shared_ptr<libfreenect2::SyncMultiFrameListener>(
+                new libfreenect2::SyncMultiFrameListener($frame_types));
+        """)
+    end
+end
+
 # TODO: remove this inefficient glue code
 cxx"""
+namespace legacy {
 libfreenect2::FrameMap getFrameMap(
     libfreenect2::SyncMultiFrameListener* listener) {
     libfreenect2::FrameMap frames;
     listener->waitForNewFrame(frames);
     return frames;
 }
+}
 """
 function waitForNewFrame(listener::SyncMultiFrameListenerPtr)
-    frames = @cxx getFrameMap(listener.handle)
+    frames = icxx"""return legacy::getFrameMap($(listener.handle).get());"""
     return FrameMap(frames)
+end
+
+function release(listener::SyncMultiFrameListenerPtr, jlframes::FrameMap)
+    frames = jlframes.handle
+    # really ugly
+    icxx"""
+    libfreenect2::FrameMap cxxframes;
+    for (libfreenect2::FrameMap::iterator it = $frames.begin();
+         it != $frames.end(); ++it) {
+        cxxframes[it->first] = it->second;
+    }
+    $(listener.handle)->release(cxxframes);
+    """
+end
+
+hasNewFrame(listener::SyncMultiFrameListenerPtr) =
+    icxx"$(listener.handle)->hasNewFrame()"
+
+"""libfreenect2::Freenect2"""
+typealias Freenect2 cxxt"libfreenect2::Freenect2"
+(::Type{Freenect2})() = @cxx libfreenect2::Freenect2()
+
+for name in [
+    :enumerateDevices,
+    ]
+    @eval $name(f::Freenect2) = @cxx f->$name()
+end
+
+function openDefaultDevice(f::Freenect2, pipeline=Union{})
+    if is(pipeline, Union{})
+        @cxx f->openDefaultDevice()
+    else
+        @cxx f->openDefaultDevice(pipeline)
+    end
+end
+
+function getDeviceSerialNumber(f::Freenect2, idx)
+    bytestring(@cxx f->getDeviceSerialNumber(idx))
+end
+
+function getDefaultDeviceSerialNumber(f::Freenect2)
+    bytestring(@cxx f->getDefaultDeviceSerialNumber())
+end
+
+function openDevice(f::Freenect2, name, pipeline=Union{})
+    arg1 = isa(name, AbstractString) ? pointer(name) : name
+
+    if is(pipeline, Union{})
+        @cxx f->openDevice(arg1)
+    else
+        @cxx f->openDevice(arg1, pipeline)
+    end
+end
+
+"""libfreenect2::Freenect2Device*"""
+const Freenect2DevicePtr = pcpp"libfreenect2::Freenect2Device"
+
+function getSerialNumber(device::Freenect2DevicePtr)
+    bytestring(@cxx device->getSerialNumber())
+end
+
+function getFirmwareVersion(device::Freenect2DevicePtr)
+    bytestring(@cxx device->getFirmwareVersion())
+end
+
+import Base: start, close
+
+for f in [
+    :getColorCameraParams,
+    :getIrCameraParams,
+    ]
+    @eval $f(device::Freenect2DevicePtr) = @cxx device->$f()
+end
+
+for f in [
+    :start,
+    :stop,
+    :close,
+    ]
+    @eval begin
+        function $f(device::Freenect2DevicePtr)
+            r = @cxx device->$f()
+            r || error("problem happens in device operation")
+        end
+    end
+end
+
+function setColorFrameListener(device::Freenect2DevicePtr,
+        listener::SyncMultiFrameListenerPtr)
+    icxx"$device->setColorFrameListener($(listener.handle).get());"
+end
+
+function setIrAndDepthFrameListener(device::Freenect2DevicePtr,
+        listener::SyncMultiFrameListenerPtr)
+    icxx"$device->setIrAndDepthFrameListener($(listener.handle).get());"
 end
 
 const ColorCameraParams = cxxt"libfreenect2::Freenect2Device::ColorCameraParams"
 const IrCameraParams = cxxt"libfreenect2::Freenect2Device::IrCameraParams"
 
-function Registration(irparams::IrCameraParams, cparams::ColorCameraParams)
-    @cxxnew libfreenect2::Registration(irparams, cparams)
+type Registration
+    handle::cxxt"std::shared_ptr<libfreenect2::Registration>"
+
+    function Registration(irparams::IrCameraParams, cparams::ColorCameraParams)
+        p = icxx"std::shared_ptr<libfreenect2::Registration>(
+            new libfreenect2::Registration($irparams, $cparams));"
+    new(p)
+    end
 end
 
-function Base.apply{T<:FramePtr}(registration, color::T, depth::T,
+function Base.apply{T<:FramePtr}(registration::Registration, color::T, depth::T,
     undistorted::T, registered::T; enable_filter::Bool=true)
-    icxx"$registration->apply($(color.handle), $(depth.handle),
+    icxx"$(registration.handle)->apply($(color.handle), $(depth.handle),
         $(undistorted.handle), $(registered.handle), $enable_filter);"
 end
 
@@ -385,7 +408,7 @@ inline uint8_t unsafe_f2uint8(float& rgb, size_t idx) {
     return p[idx];
 }
 """
-function getPointXYZRGB{T<:FramePtr}(registration, undistorted::T,
+function getPointXYZRGB{T<:FramePtr}(registration::Registration, undistorted::T,
     registered::T, r::Integer, c::Integer)
     uframe = undistorted.handle
     rframe = registered.handle
@@ -393,7 +416,7 @@ function getPointXYZRGB{T<:FramePtr}(registration, undistorted::T,
     y = Ref{Cfloat}()
     z = Ref{Cfloat}()
     rgb = Ref{Cfloat}()
-    icxx"""$(registration)->getPointXYZRGB($uframe, $rframe,
+    icxx"""$(registration.handle)->getPointXYZRGB($uframe, $rframe,
         $r, $c, $x, $y, $z, $rgb);"""
     rgbval = rgb[]
     b = @cxx unsafe_f2uint8(rgbval, 0)

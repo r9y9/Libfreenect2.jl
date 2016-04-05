@@ -9,7 +9,6 @@ using Base.Test
     @test exposure(frame) == 0.0
     @test gain(frame) == 0.0
     @test gamma(frame) == 0.0
-    release(frame)
 end
 
 @testset "libfreenect2 basics" begin
@@ -70,8 +69,6 @@ end
         @test size(deptharr) == size(irarr)
     end
 
-    release(frames)
+    release(listener, frames)
     close(device)
-
-    release(listener)
 end

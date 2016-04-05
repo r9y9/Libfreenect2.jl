@@ -45,10 +45,10 @@ while true
     cv2.imshow("ir", irarr)
     cv2.imshow("depth", deptharr)
 
-    # cv2.imshow("registered", registeredarr)
-    # cv2.imshow("unistored", undistortedarr)
+    cv2.imshow("registered", registeredarr)
+    cv2.imshow("unistored", undistortedarr)
 
-    release(frames)
+    release(listener, frames)
 
     key = cv2.waitKey(delay=1)
     isesc(key) && break
@@ -57,9 +57,7 @@ while true
     rand() > 0.98 && gc(false)
 end
 
-foreach(release, [undistorted, registered])
-
 stop(device)
 close(device)
 
-release(listener)
+cv2.destroyAllWindows()
