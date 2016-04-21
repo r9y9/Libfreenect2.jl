@@ -56,10 +56,7 @@ export
     getPointXYZRGB
 
 
-const VERBOSE = Bool(parse(Int, get(ENV, "LIBFREENECT2JL_VERBOSE", "1")))
-
 # Load dependency
-VERBOSE && info("Loading deps.jl")
 deps = joinpath(dirname(@__FILE__), "..", "deps", "deps.jl")
 if isfile(deps)
     include(deps)
@@ -69,10 +66,8 @@ end
 
 import Base: convert, getindex, start, close, gamma
 
-VERBOSE && info("Loading Cxx.jl...")
 using Cxx
 
-VERBOSE && info("dlopen...")
 Libdl.dlopen_e(libfreenect2, Libdl.RTLD_GLOBAL)
 
 function include_headers(top)
@@ -93,10 +88,10 @@ const system_include_top = "/usr/local/include"
 const local_include_top = joinpath(Pkg.dir("Libfreenect2", "deps", "usr", "include"))
 
 if isdir(local_include_top)
-    VERBOSE && info("Including headers from local path: $local_include_top")
+    # info("Including headers from local path: $local_include_top")
     include_headers(local_include_top)
 elseif isdir(joinpath(system_include_top, "libfreenect2"))
-    VERBOSE && info("Including headers from system path: $system_include_top")
+    # info("Including headers from system path: $system_include_top")
     include_headers(system_include_top)
 else
     error("Cannot find libfreenect2 headers")
