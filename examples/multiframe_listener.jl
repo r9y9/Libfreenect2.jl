@@ -1,6 +1,7 @@
 using Libfreenect2
 using Cxx
-using OpenCV
+using CVCore
+using CVHighGUI
 
 isesc(key) = key == 27
 
@@ -38,19 +39,19 @@ while true
     scale!(1/4500, deptharr)
 
     # resize color image since it's a bit large to draw
-    colormat = cv2.Mat(colorarr)
-    colormat = cv2.resize(colormat, (width(color)/3, height(color)/3))
+    colormat = Mat(colorarr)
+    colormat = resize(colormat, (width(color)/3, height(color)/3))
 
-    cv2.imshow("color", colormat)
-    cv2.imshow("ir", irarr)
-    cv2.imshow("depth", deptharr)
+    imshow("color", colormat)
+    imshow("ir", irarr)
+    imshow("depth", deptharr)
 
-    cv2.imshow("registered", registeredarr)
-    cv2.imshow("unistored", undistortedarr)
+    imshow("registered", registeredarr)
+    imshow("unistored", undistortedarr)
 
     release(listener, frames)
 
-    key = cv2.waitKey(delay=1)
+    key = waitKey(delay=1)
     isesc(key) && break
 
     # TODO: remove this
@@ -60,4 +61,4 @@ end
 stop(device)
 close(device)
 
-cv2.destroyAllWindows()
+destroyAllWindows()
