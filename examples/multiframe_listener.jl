@@ -2,10 +2,15 @@ using Libfreenect2
 using Cxx
 using CVCore
 using CVHighGUI
+using CVImgProc
 
 isesc(key) = key == 27
 
 f = Freenect2()
+num_devices = enumerateDevices(f)
+if num_devices <= 0
+    error("No device!")
+end
 device = openDefaultDevice(f, OpenGLPacketPipeline())
 listener = SyncMultiFrameListenerPtr()
 setIrAndDepthFrameListener(device, listener)
