@@ -391,7 +391,7 @@ type Registration
     end
 end
 
-function Base.apply{T<:FramePtr}(registration::Registration, color::T, depth::T,
+function apply{T<:FramePtr}(registration::Registration, color::T, depth::T,
     undistorted::T, registered::T; enable_filter::Bool=true)
     icxx"$(registration.handle)->apply($(color.handle), $(depth.handle),
         $(undistorted.handle), $(registered.handle), $enable_filter);"
