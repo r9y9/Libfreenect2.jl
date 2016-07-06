@@ -103,7 +103,7 @@ OpenGLPacketPipeline() = @cxxnew libfreenect2::OpenGLPacketPipeline()
 OpenCLPacketPipeline() = @cxxnew libfreenect2::OpenCLPacketPipeline()
 
 import Cxx: CppEnum
-const Libfreenect2FrameType = CppEnum{symbol("libfreenect2::Frame::Type"),Int32}
+const Libfreenect2FrameType = CppEnum{Symbol("libfreenect2::Frame::Type"),Int32}
 
 # This is used in the SyncMultiFrameListener constructor, since it requires frame types
 # to be specified by unsigned int
@@ -190,7 +190,7 @@ for member in [
     :gamma
     ]
     body = "\$(frame.handle)->$(member);"
-    ex = Expr(:macrocall, symbol("@icxx_str"), body)
+    ex = Expr(:macrocall, Symbol("@icxx_str"), body)
     @eval $member(frame::FramePtr) = $ex
 end
 
@@ -200,7 +200,7 @@ for member in [
     :bytes_per_pixel,
     ]
     body = "\$(frame.handle)->$(member);"
-    ex = Expr(:macrocall, symbol("@icxx_str"), body)
+    ex = Expr(:macrocall, Symbol("@icxx_str"), body)
     @eval $member(frame::FramePtr) = convert(Int, $ex)
 end
 
@@ -213,14 +213,14 @@ function _asarray(frame::FramePtr; do_reshape::Bool=true)
 
     if frame.frame_type == FRAME_COLOR
         total_length = width(frame) * height(frame) * 4
-        array = pointer_to_array(data_ptr, total_length)
+        array = unsafe_wrap(Array, data_ptr, total_length)
         if do_reshape
             array = reshape(array, 4, width(frame), height(frame))
         end
         return array
     elseif frame.frame_type == FRAME_IR || frame.frame_type == FRAME_DEPTH
         total_length = width(frame) * height(frame) * 1
-        array = pointer_to_array(convert(Ptr{Float32}, data_ptr), total_length)
+        array = unsafe_wrap(Array, convert(Ptr{Float32}, data_ptr), total_length)
         if do_reshape
             array = reshape(array, width(frame), height(frame))
         end
@@ -301,37 +301,38 @@ hasNewFrame(listener::SyncMultiFrameListenerPtr) =
 
 """libfreenect2::Freenect2"""
 typealias Freenect2 cxxt"libfreenect2::Freenect2"
-(::Type{Freenect2})() = @cxx libfreenect2::Freenect2()
+(::Type{Freenect2})() = icxx"libfreenect2::Freenect2();"
 
 for name in [
     :enumerateDevices,
     ]
-    @eval $name(f::Freenect2) = @cxx f->$name()
+    ex = Expr(:macrocall, Symbol("@icxx_str"), "\$f.$(name)();")
+    @eval $name(f::Freenect2) = $ex
 end
 
 function openDefaultDevice(f::Freenect2, pipeline=Union{})
     if is(pipeline, Union{})
-        @cxx f->openDefaultDevice()
+        icxx"$f->openDefaultDevice();"
     else
-        @cxx f->openDefaultDevice(pipeline)
+        icxx"$f->openDefaultDevice(pipeline);"
     end
 end
 
 function getDeviceSerialNumber(f::Freenect2, idx)
-    bytestring(@cxx f->getDeviceSerialNumber(idx))
+    unsafe_string(icxx"$f->getDeviceSerialNumber($idx);")
 end
 
 function getDefaultDeviceSerialNumber(f::Freenect2)
-    bytestring(@cxx f->getDefaultDeviceSerialNumber())
+    unsafe_string(icxx"$f.getDefaultDeviceSerialNumber();")
 end
 
 function openDevice(f::Freenect2, name, pipeline=Union{})
     arg1 = isa(name, AbstractString) ? pointer(name) : name
 
     if is(pipeline, Union{})
-        @cxx f->openDevice(arg1)
+        icxx"$f.openDevice($arg1);"
     else
-        @cxx f->openDevice(arg1, pipeline)
+        icxx"$f.openDevice($arg1, $pipeline);"
     end
 end
 
@@ -339,11 +340,11 @@ end
 const Freenect2DevicePtr = pcpp"libfreenect2::Freenect2Device"
 
 function getSerialNumber(device::Freenect2DevicePtr)
-    bytestring(@cxx device->getSerialNumber())
+    unsafe_string(icxx"$device->getSerialNumber();")
 end
 
 function getFirmwareVersion(device::Freenect2DevicePtr)
-    bytestring(@cxx device->getFirmwareVersion())
+    unsafe_string(icxx"$device->getFirmwareVersion();")
 end
 
 import Base: start, close
@@ -352,7 +353,8 @@ for f in [
     :getColorCameraParams,
     :getIrCameraParams,
     ]
-    @eval $f(device::Freenect2DevicePtr) = @cxx device->$f()
+    ex = Expr(:macrocall, Symbol("@icxx_str"), "\$device->$f();")
+    @eval $f(device::Freenect2DevicePtr) = $ex
 end
 
 for f in [
@@ -360,9 +362,10 @@ for f in [
     :stop,
     :close,
     ]
+    cxxcall = Expr(:macrocall, Symbol("@icxx_str"), "\$device->$f();")
     @eval begin
         function $f(device::Freenect2DevicePtr)
-            r = @cxx device->$f()
+            r = $cxxcall
             r || error("problem happens in device operation")
         end
     end
