@@ -312,14 +312,14 @@ end
 
 function openDefaultDevice(f::Freenect2, pipeline=Union{})
     if is(pipeline, Union{})
-        icxx"$f->openDefaultDevice();"
+        icxx"$f.openDefaultDevice();"
     else
-        icxx"$f->openDefaultDevice(pipeline);"
+        icxx"$f.openDefaultDevice($pipeline);"
     end
 end
 
 function getDeviceSerialNumber(f::Freenect2, idx)
-    unsafe_string(icxx"$f->getDeviceSerialNumber($idx);")
+    unsafe_string(icxx"$f.getDeviceSerialNumber($idx);")
 end
 
 function getDefaultDeviceSerialNumber(f::Freenect2)
