@@ -24,46 +24,47 @@ registration = Registration(getIrCameraParams(device),
 undistorted = FramePtr(512, 424, 4, key=Libfreenect2.FRAME_DEPTH)
 registered = FramePtr(512, 424, 4, key=Libfreenect2.FRAME_COLOR)
 
-while true
-    frames = waitForNewFrame(listener)
-    color = frames[FrameType.COLOR]
-    ir = frames[FrameType.IR]
-    depth = frames[FrameType.DEPTH]
+try
+    while true
+        frames = waitForNewFrame(listener)
+        color = frames[FrameType.COLOR]
+        ir = frames[FrameType.IR]
+        depth = frames[FrameType.DEPTH]
 
-    apply(registration, color, depth, undistorted, registered)
+        apply(registration, color, depth, undistorted, registered)
 
-    # Convert to Julia Array
-    colorarr = convert(Array{UInt8,3}, color)
-    irarr = convert(Array{Float32,2}, ir)
-    deptharr = convert(Array{Float32,2}, depth)
-    registeredarr = convert(Array{UInt8,3}, registered)
-    undistortedarr = convert(Array{Float32,2}, undistorted)
+        # Convert to Julia Array
+        colorarr = convert(Array{UInt8,3}, color)
+        irarr = convert(Array{Float32,2}, ir)
+        deptharr = convert(Array{Float32,2}, depth)
+        registeredarr = convert(Array{UInt8,3}, registered)
+        undistortedarr = convert(Array{Float32,2}, undistorted)
 
-    # Scale array to range [0,1]
-    scale!(1/65535, irarr)
-    scale!(1/4500, deptharr)
+        # Scale array to range [0,1]
+        scale!(1/65535, irarr)
+        scale!(1/4500, deptharr)
 
-    # resize color image since it's a bit large to draw
-    colormat = Mat(colorarr)
-    colormat = resize(colormat, (width(color)/3, height(color)/3))
+        # resize color image since it's a bit large to draw
+        colormat = Mat(colorarr)
+        colormat = resize(colormat,(Libfreenect2.height(color)/3, Libfreenect2.width(color)/3))
 
-    imshow("color", colormat)
-    imshow("ir", irarr)
-    imshow("depth", deptharr)
+        # imshow("color", colormat)
+        # imshow("ir", irarr)
+        imshow("depth", deptharr)
 
-    imshow("registered", registeredarr)
-    imshow("unistored", undistortedarr)
+        # imshow("registered", registeredarr)
+        # imshow("unistored", undistortedarr)
 
-    release(listener, frames)
+        release(listener, frames)
 
-    key = waitKey(delay=1)
-    isesc(key) && break
+        key = waitKey(delay=1)
+        isesc(key) && break
 
-    # TODO: remove this
-    rand() > 0.98 && gc(false)
+        # TODO: remove this
+        rand() > 0.98 && gc(false)
+    end
+finally
+    stop(device)
+    close(device)
+    destroyAllWindows()
 end
-
-stop(device)
-close(device)
-
-destroyAllWindows()
