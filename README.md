@@ -2,7 +2,7 @@
 
 A Julia wrapper for libfreenect2 based on Cxx.jl
 
-<div align="center"><img src="examples/depth_streaming_example.gif"></div>
+<div align="center"><img src="test/depth_streaming_example.gif"></div>
 
 LibFreenect2.jl supports most of libfreenect2 features:
 
@@ -30,4 +30,4 @@ This should install Libfreenect2.jl and resolve its binary dependency property. 
 
 ## How it works
 
-See [examples/multiframe_listener.jl](examples/multiframe_listener.jl) (this is a similar program to Protonect in libfreenec2). Note that it requits [r9y9/OpenCV.jl](https://github.com/r9y9/OpenCV.jl) to visualize color, depth and ir streaming results.
+See [test/multiframe_listener.jl](test/multiframe_listener.jl) (this is a similar program to Protonect in libfreenec2). Note that it requits [r9y9/OpenCV.jl](https://github.com/r9y9/OpenCV.jl) to visualize color, depth and ir streaming results.
