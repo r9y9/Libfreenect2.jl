@@ -3,7 +3,7 @@ using Compat
 
 @BinDeps.setup
 
-const libfreenect2_version = "0.1.0"
+const libfreenect2_version = "0.2.0"
 
 ignore_paths = split(strip(get(ENV, "LIBFREENECT2JL_LIBRARY_IGNORE_PATH", "")), ':')
 
