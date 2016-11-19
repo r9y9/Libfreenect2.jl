@@ -15,6 +15,7 @@ export
     CpuPacketPipeline,
     OpenGLPacketPipeline,
     OpenCLPacketPipeline,
+    OpenCLKdePacketPipeline,
 
     # Freenect2Device
     getSerialNumber,
@@ -101,6 +102,7 @@ end
 CpuPacketPipeline() = @cxxnew libfreenect2::CpuPacketPipeline()
 OpenGLPacketPipeline() = @cxxnew libfreenect2::OpenGLPacketPipeline()
 OpenCLPacketPipeline() = @cxxnew libfreenect2::OpenCLPacketPipeline()
+OpenCLKdePacketPipeline() = icxx"new libfreenect2::OpenCLKdePacketPipeline();"
 
 import Cxx: CppEnum
 const Libfreenect2FrameType = CppEnum{Symbol("libfreenect2::Frame::Type"),Int32}

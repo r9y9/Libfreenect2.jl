@@ -11,7 +11,7 @@ num_devices = enumerateDevices(f)
 if num_devices <= 0
     error("No device!")
 end
-device = openDefaultDevice(f, OpenGLPacketPipeline())
+device = openDefaultDevice(f, OpenCLPacketPipeline())
 listener = SyncMultiFrameListenerPtr()
 setIrAndDepthFrameListener(device, listener)
 setColorFrameListener(device, listener)
