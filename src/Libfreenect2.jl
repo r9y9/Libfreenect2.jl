@@ -2,59 +2,14 @@ __precompile__(false)
 
 module Libfreenect2
 
-export
-    # Freenect2
-    Freenect2,
-    enumerateDevices,
-    getDeviceSerialNumber,
-    getDefaultDeviceSerialNumber,
-    openDevice,
-    openDefaultDevice,
-
-    # Packet pipelines
-    CpuPacketPipeline,
-    OpenGLPacketPipeline,
-    OpenCLPacketPipeline,
-    OpenCLKdePacketPipeline,
-
-    # Freenect2Device
-    getSerialNumber,
-    getFirmwareVersion,
-    getColorCameraParams,
-    getIrCameraParams,
-    setColorFrameListener,
-    setIrAndDepthFrameListener,
-    start,
-    stop,
-    close,
-
-    # SyncMultiFrameListener
-    SyncMultiFrameListenerPtr,
-    hasNewFrame,
-    waitForNewFrame,
-    release,
-
-    # Frame
-    FrameMap,
-    FrameType,
-    FramePtr,
-    timestamp,
-    sequence,
-    width,
-    height,
-    bytes_per_pixel,
-    data,
-    exposure,
-    gain,
-    gamma,
-
-    # release heap-allocated memory
-    destroy,
-
-    # Registration
-    Registration,
-    apply,
-    getPointXYZRGB
+export Freenect2,enumerateDevices, getDeviceSerialNumber,
+    getDefaultDeviceSerialNumber,openDevice, openDefaultDevice,
+    CpuPacketPipeline, OpenGLPacketPipeline, OpenCLPacketPipeline,
+    OpenCLKdePacketPipeline, getSerialNumber, getFirmwareVersion,
+    getColorCameraParams, getIrCameraParams, setColorFrameListener,
+    setIrAndDepthFrameListener, start, stop, close,
+    SyncMultiFrameListenerPtr, hasNewFrame, waitForNewFrame, release,
+    FrameMap, FrameType, FramePtr, Registration, apply
 
 
 # Load dependency
@@ -99,9 +54,9 @@ else
 end
 
 
-CpuPacketPipeline() = @cxxnew libfreenect2::CpuPacketPipeline()
-OpenGLPacketPipeline() = @cxxnew libfreenect2::OpenGLPacketPipeline()
-OpenCLPacketPipeline() = @cxxnew libfreenect2::OpenCLPacketPipeline()
+CpuPacketPipeline() = icxx"new libfreenect2::CpuPacketPipeline();"
+OpenGLPacketPipeline() = icxx"new libfreenect2::OpenGLPacketPipeline();"
+OpenCLPacketPipeline() = icxx"new libfreenect2::OpenCLPacketPipeline();"
 OpenCLKdePacketPipeline() = icxx"new libfreenect2::OpenCLKdePacketPipeline();"
 
 import Cxx: CppEnum
@@ -400,29 +355,6 @@ function apply{T<:FramePtr}(registration::Registration, color::T, depth::T,
     undistorted::T, registered::T; enable_filter::Bool=true)
     icxx"$(registration.handle)->apply($(color.handle), $(depth.handle),
         $(undistorted.handle), $(registered.handle), $enable_filter);"
-end
-
-cxx"""
-inline uint8_t unsafe_f2uint8(float& rgb, size_t idx) {
-    const uint8_t *p = reinterpret_cast<uint8_t*>(&rgb);
-    return p[idx];
-}
-"""
-function getPointXYZRGB{T<:FramePtr}(registration::Registration, undistorted::T,
-    registered::T, r::Integer, c::Integer)
-    uframe = undistorted.handle
-    rframe = registered.handle
-    x = Ref{Cfloat}()
-    y = Ref{Cfloat}()
-    z = Ref{Cfloat}()
-    rgb = Ref{Cfloat}()
-    icxx"""$(registration.handle)->getPointXYZRGB($uframe, $rframe,
-        $r, $c, $x, $y, $z, $rgb);"""
-    rgbval = rgb[]
-    b = @cxx unsafe_f2uint8(rgbval, 0)
-    g = @cxx unsafe_f2uint8(rgbval, 1)
-    r = @cxx unsafe_f2uint8(rgbval, 2)
-    return x[], y[], z[], r, g, b
 end
 
 # deprecates
