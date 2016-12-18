@@ -7,9 +7,9 @@ export Freenect2,enumerateDevices, getDeviceSerialNumber,
     CpuPacketPipeline, OpenGLPacketPipeline, OpenCLPacketPipeline,
     OpenCLKdePacketPipeline, getSerialNumber, getFirmwareVersion,
     getColorCameraParams, getIrCameraParams, setColorFrameListener,
-    setIrAndDepthFrameListener, start, stop, close,
+    setIrAndDepthFrameListener, start, startStreams, stop, close,
     SyncMultiFrameListenerPtr, hasNewFrame, waitForNewFrame, release,
-    FrameMap, FrameType, FramePtr, Registration, apply
+    FrameMap, FrameType, FramePtr, Registration, apply, undistortDepth
 
 
 # Load dependency
@@ -165,7 +165,7 @@ end
 
 """Convenient function to convert Frame* to Array
 """
-function _asarray(frame::FramePtr; do_reshape::Bool=true)
+@inline function _asarray(frame::FramePtr; do_reshape::Bool=true)
     data_ptr = data(frame)::Ptr{UInt8}
 
     if frame.frame_type == FRAME_COLOR
@@ -328,6 +328,10 @@ for f in [
     end
 end
 
+function startStreams(device::Freenect2DevicePtr, rgb::Bool, depth::Bool)
+    icxx"$(device)->startStreams($rgb, $depth);"
+end
+
 function setColorFrameListener(device::Freenect2DevicePtr,
         listener::SyncMultiFrameListenerPtr)
     icxx"$device->setColorFrameListener($(listener.handle).get());"
@@ -355,6 +359,14 @@ function apply{T<:FramePtr}(registration::Registration, color::T, depth::T,
     undistorted::T, registered::T; enable_filter::Bool=true)
     icxx"$(registration.handle)->apply($(color.handle), $(depth.handle),
         $(undistorted.handle), $(registered.handle), $enable_filter);"
+end
+
+function undistortDepth{T<:FramePtr}(registration::Registration, depth::T,
+    undistorted::T)
+    icxx"""
+        $(registration.handle)->undistortDepth(
+            $(depth.handle), $(undistorted.handle));
+    """
 end
 
 # deprecates
